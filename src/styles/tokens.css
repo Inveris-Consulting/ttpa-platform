@@ -1,0 +1,123 @@
+/* Design Tokens - R&R TTPA Platform */
+
+:root {
+  /* Brand Colors - R&R Core */
+  --rr-navy-deep: #0B1340;
+  --rr-navy-header: #15226D;
+  --rr-navy-surface: #1B2980;
+  --rr-navy-light: #2A3B9E;
+  
+  /* TTPA Division Electric Colors */
+  --ttpa-blue-primary: #2563EB;
+  --ttpa-blue-hover: #1D4ED8;
+  --ttpa-blue-active: #1E40AF;
+  --ttpa-blue-light: #EFF6FF;
+  --ttpa-blue-glow: rgba(37, 99, 235, 0.25);
+  
+  /* R&R Gold & Accent Colors */
+  --rr-gold: #F59E0B;
+  --rr-gold-hover: #D97706;
+  --rr-gold-light: #FEF3C7;
+  --rr-orange: #EA580C;
+
+  /* Data Visualization Chart Colors */
+  --chart-blue: #2563EB;
+  --chart-navy: #1E293B;
+  --chart-cyan: #06B6D4;
+  --chart-amber: #F59E0B;
+  --chart-purple: #8B5CF6;
+  --chart-green: #10B981;
+  --chart-pink: #EC4899;
+
+  /* Neutral Slate Palette */
+  --slate-50: #F8FAFC;
+  --slate-100: #F1F5F9;
+  --slate-150: #E7EEF6;
+  --slate-200: #E2E8F0;
+  --slate-300: #CBD5E1;
+  --slate-400: #94A3B8;
+  --slate-500: #64748B;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1E293B;
+  --slate-900: #0F172A;
+
+  /* Functional / Status */
+  --color-success: #10B981;
+  --color-success-bg: #ECFDF5;
+  --color-warning: #F59E0B;
+  --color-warning-bg: #FFFBEB;
+  --color-danger: #EF4444;
+  --color-danger-bg: #FEF2F2;
+  --color-info: #3B82F6;
+  --color-info-bg: #EFF6FF;
+
+  /* Theme Defaults (Light Theme) */
+  --bg-app: var(--slate-50);
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-header: var(--rr-navy-header);
+  
+  --border-subtle: #E2E8F0;
+  --border-medium: #CBD5E1;
+  --border-focus: var(--ttpa-blue-primary);
+
+  --text-primary: var(--slate-900);
+  --text-secondary: var(--slate-600);
+  --text-muted: var(--slate-400);
+  --text-on-navy: #FFFFFF;
+  --text-on-navy-muted: rgba(255, 255, 255, 0.7);
+
+  /* Typography */
+  --font-family-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-family-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+  /* Shadows & Elevation */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+  --shadow-card: 0 10px 30px -5px rgba(21, 34, 109, 0.06), 0 4px 10px -2px rgba(0, 0, 0, 0.02);
+  --shadow-card-hover: 0 18px 36px -6px rgba(21, 34, 109, 0.12), 0 8px 16px -4px rgba(0, 0, 0, 0.04);
+  
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Spacing System */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 350ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Dark Theme Overrides */
+[data-theme="dark"] {
+  --bg-app: #0B1120;
+  --bg-surface: #1E293B;
+  --bg-surface-elevated: #334155;
+  --bg-header: #0F172A;
+
+  --border-subtle: #334155;
+  --border-medium: #475569;
+
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+
+  --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 18px 36px -6px rgba(0, 0, 0, 0.6);
+}

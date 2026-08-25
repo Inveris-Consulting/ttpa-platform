@@ -1,0 +1,84 @@
+.ak-dash-sidebar {
+  overflow: auto;
+}
+
+.ak-folder-group {
+  margin-top: 10px;
+}
+
+.ak-folder-group > h3 {
+  align-items: center;
+  color: #858894;
+  display: flex;
+  font-size: 8px;
+  gap: 6px;
+  height: 28px;
+  letter-spacing: 0.08em;
+  margin: 0;
+  padding: 0 8px;
+  text-transform: uppercase;
+}
+
+.ak-folder-group > h3 small {
+  margin-left: auto;
+}
+
+.ak-folder-group > button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: #90939e;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  height: 48px;
+  padding: 0 9px;
+  text-align: left;
+  width: 100%;
+}
+
+.ak-folder-group > button:hover {
+  background: #f6f7f9;
+}
+
+.ak-folder-group > button.active {
+  background: #fff0ec;
+  color: var(--ak-orange);
+}
+
+.ak-chart-folder {
+  border-bottom: 1px solid #f0f1f4;
+  padding: 5px 0;
+}
+
+.ak-chart-folder:last-child {
+  border-bottom: 0;
+}
+
+.ak-chart-folder > strong {
+  align-items: center;
+  color: #858894;
+  display: flex;
+  font-size: 8px;
+  gap: 6px;
+  height: 25px;
+  letter-spacing: 0.06em;
+  padding: 0 8px;
+  text-transform: uppercase;
+}
+
+.ak-modal-body select {
+  background: #fff;
+  border: 1px solid #dde0e6;
+  border-radius: 9px;
+  font-size: 11px;
+  height: 38px;
+  outline: 0;
+  padding: 0 11px;
+  width: 100%;
+}
+
+.ak-modal-body select:focus {
+  border-color: #ff9b85;
+  box-shadow: 0 0 0 3px #ff260010;
+}
