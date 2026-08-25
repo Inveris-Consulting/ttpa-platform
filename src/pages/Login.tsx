@@ -64,18 +64,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleDemoLogin = (role: 'admin' | 'user') => {
-    onLoginSuccess({
-      user: {
-        id: role === 'admin' ? '512b6183-f508-4e93-81ef-f9b34806295b' : 'c21e388f-7ca7-4400-af02-f96389b5ced7',
-        email: role === 'admin' ? 'felipe.rosendo@rentandrecruit.com' : 'rodrigo.pimentel@rentandrecruit.com',
-        name: role === 'admin' ? 'Felipe Rosendo' : 'Rodrigo Pimentel',
-        role,
-        representative_id: role === 'user' ? '7617a3a2-0c4f-5ad5-92c8-6ebb534e7f45' : null,
-      },
-    });
-  };
-
   return (
     <div
       style={{
@@ -191,18 +179,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             <ArrowRight size={16} />
           </Button>
         </form>
-
-        <div style={{ marginTop: 'var(--space-6)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Demo Quick Login Access:</span>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'center', marginTop: '8px' }}>
-            <Button variant="outline" size="sm" onClick={() => handleDemoLogin('admin')}>
-              Sign in as Admin
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => handleDemoLogin('user')}>
-              Sign in as User (TTPA)
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   );
