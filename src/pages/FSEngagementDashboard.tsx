@@ -192,12 +192,12 @@ export const FSEngagementDashboard: React.FC = () => {
   };
 
   const kpiData = [
-    { id: 'calls', label: 'FS Calls', value: kpis.calls.toLocaleString(), subtext: 'FS Team Calls' },
-    { id: 'calls_per_lead', label: 'Calls per Lead', value: kpis.calls_per_lead.toString(), subtext: 'Total Calls / Leads' },
-    { id: 'leads', label: 'Total Leads', value: kpis.leads.toLocaleString(), subtext: 'Submissions Received' },
-    { id: 'deals', label: 'Closed Deals', value: kpis.deals.toLocaleString(), subtext: 'Total Closed Opportunities' },
-    { id: 'students', label: 'Students', value: kpis.students.toLocaleString(), subtext: 'Enrolled Students' },
-    { id: 'leads_uncalled', label: 'Uncalled Leads', value: kpis.leads_uncalled.toLocaleString(), subtext: 'Leads with 0 calls', trend: { value: 'Critical Alert', isUp: false } },
+    { id: 'calls', label: 'FS Calls', value: (kpis.calls || 0).toLocaleString(), subtext: 'FS Team Calls' },
+    { id: 'calls_per_lead', label: 'Calls per Lead', value: (kpis.calls_per_lead || 0).toString(), subtext: 'Total Calls / Leads' },
+    { id: 'leads', label: 'Total Leads', value: (kpis.leads || 0).toLocaleString(), subtext: 'Submissions Received' },
+    { id: 'deals', label: 'Closed Deals', value: (kpis.deals || 0).toLocaleString(), subtext: 'Total Closed Opportunities' },
+    { id: 'students', label: 'Students', value: (kpis.students || 0).toLocaleString(), subtext: 'Enrolled Students' },
+    { id: 'leads_uncalled', label: 'Uncalled Leads', value: (kpis.leads_uncalled || 0).toLocaleString(), subtext: 'Leads with 0 calls', trend: { value: 'Critical Alert', isUp: false } },
   ];
 
   // Pagination Math

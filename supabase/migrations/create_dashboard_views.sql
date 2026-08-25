@@ -46,7 +46,16 @@ BEGIN
       SELECT s.*
       FROM public."fSubmissions" s
       JOIN filtered_reps r ON s.representative_id = r.id
-      LEFT JOIN public."dContacts_crm" ct ON s."Contact ID" = ct."Contact ID"
+      LEFT JOIN LATERAL (
+        SELECT ct.*
+        FROM public."dContacts_crm" ct
+        WHERE (s."Email" IS NOT NULL AND s."Email" != '' AND LOWER(s."Email") = LOWER(ct."Email"))
+           OR (s."Contact ID" IS NOT NULL AND s."Contact ID" = ct."Contact ID")
+        ORDER BY 
+          CASE WHEN s."Email" IS NOT NULL AND s."Email" != '' AND LOWER(s."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+          CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+        LIMIT 1
+      ) ct ON TRUE
       WHERE s."Date" >= v_start_date AND s."Date" <= v_end_date
         AND (p_form_name = 'All Forms' OR s."Form Name" = p_form_name OR ct."Form Name" = p_form_name)
     ),
@@ -54,7 +63,16 @@ BEGIN
     deals_base AS (
       SELECT d.*
       FROM public."fDeals" d
-      LEFT JOIN public."dContacts_crm" ct ON d."Contact ID" = ct."Contact ID"
+      LEFT JOIN LATERAL (
+        SELECT ct.*
+        FROM public."dContacts_crm" ct
+        WHERE (d."Email" IS NOT NULL AND d."Email" != '' AND LOWER(d."Email") = LOWER(ct."Email"))
+           OR (d."Contact ID" IS NOT NULL AND d."Contact ID" = ct."Contact ID")
+        ORDER BY 
+          CASE WHEN d."Email" IS NOT NULL AND d."Email" != '' AND LOWER(d."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+          CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+        LIMIT 1
+      ) ct ON TRUE
       LEFT JOIN public."fSubmissions" sub ON d."Contact ID" = sub."Contact ID"
       LEFT JOIN public."dRepresentatives" r ON COALESCE(d.representative_id, ct.representative_id, sub.representative_id) = r.id
       WHERE d."Date" >= v_start_date AND d."Date" <= v_end_date
@@ -67,7 +85,16 @@ BEGIN
     students_base AS (
       SELECT st.*
       FROM public."fStudents" st
-      LEFT JOIN public."dContacts_crm" ct ON st."Contact ID" = ct."Contact ID"
+      LEFT JOIN LATERAL (
+        SELECT ct.*
+        FROM public."dContacts_crm" ct
+        WHERE (st."Email" IS NOT NULL AND st."Email" != '' AND LOWER(st."Email") = LOWER(ct."Email"))
+           OR (st."Contact ID" IS NOT NULL AND st."Contact ID" = ct."Contact ID")
+        ORDER BY 
+          CASE WHEN st."Email" IS NOT NULL AND st."Email" != '' AND LOWER(st."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+          CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+        LIMIT 1
+      ) ct ON TRUE
       LEFT JOIN public."fSubmissions" sub ON st."Contact ID" = sub."Contact ID"
       LEFT JOIN public."dRepresentatives" r ON COALESCE(st.representative_id, ct.representative_id, sub.representative_id) = r.id
       WHERE st."Date" >= v_start_date AND st."Date" <= v_end_date
@@ -181,7 +208,16 @@ BEGIN
         0 AS duration_in_call, 0 AS duration_total, true AS answered
       FROM public."fSubmissions" s
       JOIN filtered_reps r ON s.representative_id = r.id
-      LEFT JOIN public."dContacts_crm" ct ON s."Contact ID" = ct."Contact ID"
+      LEFT JOIN LATERAL (
+        SELECT ct.*
+        FROM public."dContacts_crm" ct
+        WHERE (s."Email" IS NOT NULL AND s."Email" != '' AND LOWER(s."Email") = LOWER(ct."Email"))
+           OR (s."Contact ID" IS NOT NULL AND s."Contact ID" = ct."Contact ID")
+        ORDER BY 
+          CASE WHEN s."Email" IS NOT NULL AND s."Email" != '' AND LOWER(s."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+          CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+        LIMIT 1
+      ) ct ON TRUE
       WHERE s."Date" >= v_start_date AND s."Date" <= v_end_date
         AND (p_form_name = 'All Forms' OR s."Form Name" = p_form_name OR ct."Form Name" = p_form_name)
       
@@ -197,7 +233,16 @@ BEGIN
         COALESCE(ct."Source", 'Unassigned') AS source,
         0 AS duration_in_call, 0 AS duration_total, true AS answered
       FROM public."fDeals" d
-      LEFT JOIN public."dContacts_crm" ct ON d."Contact ID" = ct."Contact ID"
+      LEFT JOIN LATERAL (
+        SELECT ct.*
+        FROM public."dContacts_crm" ct
+        WHERE (d."Email" IS NOT NULL AND d."Email" != '' AND LOWER(d."Email") = LOWER(ct."Email"))
+           OR (d."Contact ID" IS NOT NULL AND d."Contact ID" = ct."Contact ID")
+        ORDER BY 
+          CASE WHEN d."Email" IS NOT NULL AND d."Email" != '' AND LOWER(d."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+          CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+        LIMIT 1
+      ) ct ON TRUE
       LEFT JOIN public."fSubmissions" sub ON d."Contact ID" = sub."Contact ID"
       LEFT JOIN public."dRepresentatives" r ON COALESCE(d.representative_id, ct.representative_id, sub.representative_id) = r.id
       WHERE d."Date" >= v_start_date AND d."Date" <= v_end_date
@@ -218,7 +263,16 @@ BEGIN
         COALESCE(ct."Source", 'Unassigned') AS source,
         0 AS duration_in_call, 0 AS duration_total, true AS answered
       FROM public."fStudents" st
-      LEFT JOIN public."dContacts_crm" ct ON st."Contact ID" = ct."Contact ID"
+      LEFT JOIN LATERAL (
+        SELECT ct.*
+        FROM public."dContacts_crm" ct
+        WHERE (st."Email" IS NOT NULL AND st."Email" != '' AND LOWER(st."Email") = LOWER(ct."Email"))
+           OR (st."Contact ID" IS NOT NULL AND st."Contact ID" = ct."Contact ID")
+        ORDER BY 
+          CASE WHEN st."Email" IS NOT NULL AND st."Email" != '' AND LOWER(st."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+          CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+        LIMIT 1
+      ) ct ON TRUE
       LEFT JOIN public."fSubmissions" sub ON st."Contact ID" = sub."Contact ID"
       LEFT JOIN public."dRepresentatives" r ON COALESCE(st.representative_id, ct.representative_id, sub.representative_id) = r.id
       WHERE st."Date" >= v_start_date AND st."Date" <= v_end_date
@@ -443,7 +497,16 @@ BEGIN
       SELECT s.*, r."Representative" AS ttpa_rep_name, ct."Source", ct."Form Name" AS crm_form_name
       FROM public."fSubmissions" s
       LEFT JOIN public."dRepresentatives" r ON s.representative_id = r.id
-      LEFT JOIN public."dContacts_crm" ct ON s."Contact ID" = ct."Contact ID"
+      LEFT JOIN LATERAL (
+        SELECT ct.*
+        FROM public."dContacts_crm" ct
+        WHERE (s."Email" IS NOT NULL AND s."Email" != '' AND LOWER(s."Email") = LOWER(ct."Email"))
+           OR (s."Contact ID" IS NOT NULL AND s."Contact ID" = ct."Contact ID")
+        ORDER BY 
+          CASE WHEN s."Email" IS NOT NULL AND s."Email" != '' AND LOWER(s."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+          CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+        LIMIT 1
+      ) ct ON TRUE
       WHERE s."Date" >= v_start_date AND s."Date" <= v_end_date
         AND (p_form_name = 'All Forms' OR s."Form Name" = p_form_name OR ct."Form Name" = p_form_name)
     ),
@@ -655,7 +718,16 @@ BEGIN
         to_char(s."Date", 'DD/MM/YYYY') AS formatted_date
       FROM public."fSubmissions" s
       JOIN filtered_reps r ON s.representative_id = r.id
-      LEFT JOIN public."dContacts_crm" ct ON s."Contact ID" = ct."Contact ID"
+      LEFT JOIN LATERAL (
+        SELECT ct.*
+        FROM public."dContacts_crm" ct
+        WHERE (s."Email" IS NOT NULL AND s."Email" != '' AND LOWER(s."Email") = LOWER(ct."Email"))
+           OR (s."Contact ID" IS NOT NULL AND s."Contact ID" = ct."Contact ID")
+        ORDER BY 
+          CASE WHEN s."Email" IS NOT NULL AND s."Email" != '' AND LOWER(s."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+          CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+        LIMIT 1
+      ) ct ON TRUE
       WHERE s."Date" >= v_start_date AND s."Date" <= v_end_date
         AND (p_form_name = 'All Forms' OR s."Form Name" = p_form_name OR ct."Form Name" = p_form_name)
       
@@ -674,7 +746,16 @@ BEGIN
         ct."Phone" AS contact_phone,
         to_char(d."Date", 'DD/MM/YYYY') AS formatted_date
       FROM public."fDeals" d
-      LEFT JOIN public."dContacts_crm" ct ON d."Contact ID" = ct."Contact ID"
+      LEFT JOIN LATERAL (
+        SELECT ct.*
+        FROM public."dContacts_crm" ct
+        WHERE (d."Email" IS NOT NULL AND d."Email" != '' AND LOWER(d."Email") = LOWER(ct."Email"))
+           OR (d."Contact ID" IS NOT NULL AND d."Contact ID" = ct."Contact ID")
+        ORDER BY 
+          CASE WHEN d."Email" IS NOT NULL AND d."Email" != '' AND LOWER(d."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+          CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+        LIMIT 1
+      ) ct ON TRUE
       LEFT JOIN public."fSubmissions" sub ON d."Contact ID" = sub."Contact ID"
       LEFT JOIN public."dRepresentatives" r ON COALESCE(d.representative_id, ct.representative_id, sub.representative_id) = r.id
       WHERE d."Date" >= v_start_date AND d."Date" <= v_end_date
@@ -698,7 +779,16 @@ BEGIN
         ct."Phone" AS contact_phone,
         to_char(st."Date", 'DD/MM/YYYY') AS formatted_date
       FROM public."fStudents" st
-      LEFT JOIN public."dContacts_crm" ct ON st."Contact ID" = ct."Contact ID"
+      LEFT JOIN LATERAL (
+        SELECT ct.*
+        FROM public."dContacts_crm" ct
+        WHERE (st."Email" IS NOT NULL AND st."Email" != '' AND LOWER(st."Email") = LOWER(ct."Email"))
+           OR (st."Contact ID" IS NOT NULL AND st."Contact ID" = ct."Contact ID")
+        ORDER BY 
+          CASE WHEN st."Email" IS NOT NULL AND st."Email" != '' AND LOWER(st."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+          CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+        LIMIT 1
+      ) ct ON TRUE
       LEFT JOIN public."fSubmissions" sub ON st."Contact ID" = sub."Contact ID"
       LEFT JOIN public."dRepresentatives" r ON COALESCE(st.representative_id, ct.representative_id, sub.representative_id) = r.id
       WHERE st."Date" >= v_start_date AND st."Date" <= v_end_date

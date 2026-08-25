@@ -118,7 +118,16 @@ BEGIN
           s."Contact ID" AS contact_id
         FROM public."fSubmissions" s
         LEFT JOIN public."dRepresentatives" r ON s.representative_id = r.id
-        LEFT JOIN public."dContacts_crm" ct ON s."Contact ID" = ct."Contact ID"
+        LEFT JOIN LATERAL (
+          SELECT ct.*
+          FROM public."dContacts_crm" ct
+          WHERE (s."Email" IS NOT NULL AND s."Email" != '' AND LOWER(s."Email") = LOWER(ct."Email"))
+             OR (s."Contact ID" IS NOT NULL AND s."Contact ID" = ct."Contact ID")
+          ORDER BY 
+            CASE WHEN s."Email" IS NOT NULL AND s."Email" != '' AND LOWER(s."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+            CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+          LIMIT 1
+        ) ct ON TRUE
         WHERE (p_representative = 'All Representatives' OR p_representative = 'Todos os Representantes' OR COALESCE(s."Representative", r."Representative") = p_representative)
           AND (p_form_source = 'All Forms/Sources' OR s."Form Name" = p_form_source OR ct."Form Name" = p_form_source OR ct."Source" = p_form_source)
           AND (p_search_name IS NULL OR p_search_name = '' OR (s."First Name" || ' ' || COALESCE(s."Last Name", '')) ILIKE '%' || p_search_name || '%')
@@ -183,7 +192,16 @@ BEGIN
           COALESCE(d."Program Enrollment", '') AS program_enrollment,
           d."Contact ID" AS contact_id
         FROM public."fDeals" d
-        LEFT JOIN public."dContacts_crm" ct ON d."Contact ID" = ct."Contact ID"
+        LEFT JOIN LATERAL (
+          SELECT ct.*
+          FROM public."dContacts_crm" ct
+          WHERE (d."Email" IS NOT NULL AND d."Email" != '' AND LOWER(d."Email") = LOWER(ct."Email"))
+             OR (d."Contact ID" IS NOT NULL AND d."Contact ID" = ct."Contact ID")
+          ORDER BY 
+            CASE WHEN d."Email" IS NOT NULL AND d."Email" != '' AND LOWER(d."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+            CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+          LIMIT 1
+        ) ct ON TRUE
         LEFT JOIN public."fSubmissions" sub ON d."Contact ID" = sub."Contact ID"
         LEFT JOIN public."dRepresentatives" r ON d.representative_id = r.id
         LEFT JOIN public."dRepresentatives" ct_rep ON ct.representative_id = ct_rep.id
@@ -251,7 +269,16 @@ BEGIN
           COALESCE(st."Program Enrollment", '') AS program_enrollment,
           st."Contact ID" AS contact_id
         FROM public."fStudents" st
-        LEFT JOIN public."dContacts_crm" ct ON st."Contact ID" = ct."Contact ID"
+        LEFT JOIN LATERAL (
+          SELECT ct.*
+          FROM public."dContacts_crm" ct
+          WHERE (st."Email" IS NOT NULL AND st."Email" != '' AND LOWER(st."Email") = LOWER(ct."Email"))
+             OR (st."Contact ID" IS NOT NULL AND st."Contact ID" = ct."Contact ID")
+          ORDER BY 
+            CASE WHEN st."Email" IS NOT NULL AND st."Email" != '' AND LOWER(st."Email") = LOWER(ct."Email") THEN 1 ELSE 2 END,
+            CASE WHEN ct.representative_id IS NOT NULL THEN 1 ELSE 2 END
+          LIMIT 1
+        ) ct ON TRUE
         LEFT JOIN public."fSubmissions" sub ON st."Contact ID" = sub."Contact ID"
         LEFT JOIN public."dRepresentatives" r ON st.representative_id = r.id
         LEFT JOIN public."dRepresentatives" ct_rep ON ct.representative_id = ct_rep.id

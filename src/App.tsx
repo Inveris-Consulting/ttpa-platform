@@ -7,7 +7,7 @@ import { Settings } from './pages/Settings';
 import { DataExplorer } from './pages/DataExplorer';
 import { AnalyticsStudioPage } from './pages/AnalyticsStudioPage';
 import { AnalyticsDashboardsPage } from './pages/AnalyticsDashboardsPage';
-import { Settings as SettingsIcon, LogOut, FolderKanban, Sun, Moon, Database, Sparkles, LayoutDashboard } from 'lucide-react';
+import { Settings as SettingsIcon, LogOut, FolderKanban, Sun, Moon, Database, Sparkles, LayoutDashboard, Gift } from 'lucide-react';
 import './styles/tokens.css';
 import './styles/reset.css';
 import './styles/components.css';
@@ -173,6 +173,30 @@ const NavigationHeader: React.FC<NavigationHeaderProps> = ({
               <span>Settings</span>
             </button>
           )}
+
+          <a
+            href="https://ttpa-bonus-program.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: 'rgba(255, 255, 255, 0.75)',
+              backgroundColor: 'transparent',
+              transition: 'all 0.2s ease',
+              border: 'none',
+              cursor: 'pointer',
+              textDecoration: 'none',
+            }}
+          >
+            <Gift size={15} />
+            <span>Bonus Program</span>
+          </a>
         </div>
       </div>
 

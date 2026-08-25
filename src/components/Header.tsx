@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, LogOut } from 'lucide-react';
+import { Sun, Moon, LogOut, ExternalLink } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: string;
@@ -33,6 +33,17 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="ttpa-header-controls">
+        <a
+          href="https://ttpa-bonus-program.vercel.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ttpa-btn ttpa-btn-outline-navy ttpa-btn-sm"
+          title="TTPA Bonus Program"
+        >
+          <ExternalLink size={14} />
+          <span>Bonus Program</span>
+        </a>
+
         <button
           onClick={toggleTheme}
           className="ttpa-btn ttpa-btn-outline-navy ttpa-btn-sm"

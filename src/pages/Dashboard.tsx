@@ -227,13 +227,13 @@ export const Dashboard: React.FC = () => {
 
   // Linha 1 general KPI data
   const mainKpis = [
-    { id: 'calls', label: 'Calls', value: kpiMetrics.calls.toLocaleString() },
-    { id: 'submissions', label: 'Submissions', value: kpiMetrics.submissions.toLocaleString() },
-    { id: 'deals', label: 'Deals', value: kpiMetrics.deals.toLocaleString() },
-    { id: 'students', label: 'Students', value: kpiMetrics.students.toLocaleString() },
-    { id: 'submission_rate', label: 'Submission Rate', value: `${kpiMetrics.submission_rate}%` },
-    { id: 'deals_rate', label: 'Deals Rate', value: `${kpiMetrics.deals_rate}%` },
-    { id: 'students_rate', label: 'Students Rate', value: `${kpiMetrics.students_rate}%` },
+    { id: 'calls', label: 'Calls', value: (kpiMetrics.calls || 0).toLocaleString() },
+    { id: 'submissions', label: 'Submissions', value: (kpiMetrics.submissions || 0).toLocaleString() },
+    { id: 'deals', label: 'Deals', value: (kpiMetrics.deals || 0).toLocaleString() },
+    { id: 'students', label: 'Students', value: (kpiMetrics.students || 0).toLocaleString() },
+    { id: 'submission_rate', label: 'Submission Rate', value: `${kpiMetrics.submission_rate || 0}%` },
+    { id: 'deals_rate', label: 'Deals Rate', value: `${kpiMetrics.deals_rate || 0}%` },
+    { id: 'students_rate', label: 'Students Rate', value: `${kpiMetrics.students_rate || 0}%` },
   ];
 
   return (
@@ -399,7 +399,7 @@ export const Dashboard: React.FC = () => {
 
       {/* LINHA 5: Gráficos de Chamadas (Convertidos para HorizontalBarChart) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-        <DonutChart data={callDuration} totalLabel="Calls" totalValue={kpiMetrics.calls.toLocaleString()} />
+        <DonutChart data={callDuration} totalLabel="Calls" totalValue={(kpiMetrics.calls || 0).toLocaleString()} />
         
         <HorizontalBarChart
           data={avgTalkTimeByRep}
@@ -413,18 +413,18 @@ export const Dashboard: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', cursor: 'pointer' }} onClick={() => openDrilldown('All Calls', 'calls')}>
               <span>Total Calls:</span>
-              <span style={{ fontWeight: 700 }}>{callsFunnel.total_calls.toLocaleString()}</span>
+              <span style={{ fontWeight: 700 }}>{(callsFunnel.total_calls || 0).toLocaleString()}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', cursor: 'pointer' }} onClick={() => openDrilldown('Answered Calls', 'calls')}>
               <span>Answered Calls:</span>
               <span style={{ fontWeight: 700, color: 'var(--ttpa-blue-primary)' }}>
-                {callsFunnel.answered_calls.toLocaleString()} ({callsFunnel.total_calls > 0 ? ROUND((callsFunnel.answered_calls / callsFunnel.total_calls) * 100, 1) : 0}%)
+                {(callsFunnel.answered_calls || 0).toLocaleString()} ({callsFunnel.total_calls > 0 ? ROUND((callsFunnel.answered_calls / callsFunnel.total_calls) * 100, 1) : 0}%)
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', cursor: 'pointer' }} onClick={() => openDrilldown('Productive Calls (>=30s)', 'calls')}>
               <span>Productive Calls (&gt;=30s):</span>
               <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>
-                {callsFunnel.productive_calls.toLocaleString()} ({callsFunnel.total_calls > 0 ? ROUND((callsFunnel.productive_calls / callsFunnel.total_calls) * 100, 1) : 0}%)
+                {(callsFunnel.productive_calls || 0).toLocaleString()} ({callsFunnel.total_calls > 0 ? ROUND((callsFunnel.productive_calls / callsFunnel.total_calls) * 100, 1) : 0}%)
               </span>
             </div>
           </div>

@@ -101,7 +101,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           <input
             type="date"
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            onChange={(e) => {
+              const newDate = e.target.value;
+              if (newDate > endDate) {
+                alert('A data inicial não pode ser posterior à data final.');
+                return;
+              }
+              setStartDate(newDate);
+            }}
             style={{
               border: 'none',
               background: 'transparent',
@@ -116,7 +123,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           <input
             type="date"
             value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={(e) => {
+              const newDate = e.target.value;
+              if (newDate < startDate) {
+                alert('A data final não pode ser anterior à data inicial.');
+                return;
+              }
+              setEndDate(newDate);
+            }}
             style={{
               border: 'none',
               background: 'transparent',
