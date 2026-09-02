@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { fetchDashboardsFromSupabase, DashboardItem, DEFAULT_DASHBOARDS } from '../lib/powerbiStore';
 import { Dashboard as NativeDashboard } from './Dashboard';
 import { FSEngagementDashboard } from './FSEngagementDashboard';
+import { TTPABonusDashboard } from './TTPABonusDashboard';
 import {
   ChartRenderer,
   createSupabaseRepository,
@@ -241,6 +242,8 @@ export const DashboardViewer: React.FC = () => {
             <Loader2 size={24} className="animate-spin" />
             <span>Loading dashboard...</span>
           </div>
+        ) : dashboardId === 'ttpa-bonus' ? (
+          <TTPABonusDashboard />
         ) : dashboardId === 'fs-engagement' ? (
           <FSEngagementDashboard />
         ) : dashboardId === 'ttpa-team-performance' || dashboard?.type === 'native' ? (

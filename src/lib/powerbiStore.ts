@@ -21,6 +21,14 @@ export const DEFAULT_DASHBOARDS: DashboardItem[] = [
     createdAt: '2026-08-19',
   },
   {
+    id: 'ttpa-bonus',
+    title: 'TTPA Bonus',
+    description: 'Acompanhamento e cálculo de bônus por alunos matriculados para TTPA e Workforce Evolved.',
+    category: 'Incentives & Bonus',
+    type: 'native',
+    createdAt: '2026-08-28',
+  },
+  {
     id: 'fs-engagement',
     title: 'FS Team Engagement for TTPA Leads',
     description: 'Tracks whether the FS Team is calling leads sent by the TTPA, listing uncalled leads with direct CRM integration.',
