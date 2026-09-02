@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { X, Search, ExternalLink, Loader2, UserCheck, AlertCircle } from 'lucide-react';
+import { X, Search, ExternalLink, Loader2, UserCheck, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface DrilldownRow {
   contact_name: string;
@@ -13,6 +13,23 @@ export interface DrilldownRow {
   kpi: string;
   crm_url: string | null;
 }
+
+type SortField = keyof DrilldownRow;
+type SortDirection = 'asc' | 'desc';
+
+const parseDateValue = (dateStr: string | null | undefined): number => {
+  if (!dateStr) return 0;
+  const trimmed = dateStr.trim();
+  const parts = trimmed.split('/');
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    return new Date(year, month, day).getTime();
+  }
+  const t = new Date(trimmed).getTime();
+  return isNaN(t) ? 0 : t;
+};
 
 interface DrilldownModalProps {
   isOpen: boolean;
@@ -43,12 +60,21 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(20);
 
   useEffect(() => {
     if (isOpen) {
       fetchDrilldownDetails();
     }
   }, [isOpen, startDate, endDate, selectedRep, selectedForm, kpiType, filterDimension, filterValue]);
+
+  // Reset pagination to first page when search, sort, or records change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortField, sortDirection, rows.length]);
 
   const fetchDrilldownDetails = async () => {
     setLoading(true);
@@ -78,6 +104,15 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
     }
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   if (!isOpen) return null;
 
   const filteredRows = rows.filter((row) => {
@@ -91,6 +126,106 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
       (row.source && row.source.toLowerCase().includes(q))
     );
   });
+
+  const sortedRows = [...filteredRows].sort((a, b) => {
+    let comparison = 0;
+
+    if (sortField === 'date') {
+      const timeA = parseDateValue(a.date);
+      const timeB = parseDateValue(b.date);
+      comparison = timeA - timeB;
+    } else {
+      const valA = (a[sortField] ?? '').toString().trim();
+      const valB = (b[sortField] ?? '').toString().trim();
+      comparison = valA.localeCompare(valB, undefined, { sensitivity: 'base', numeric: true });
+    }
+
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
+
+  const totalPages = Math.max(Math.ceil(sortedRows.length / pageSize), 1);
+  const paginatedRows = sortedRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const renderSortableHeader = (field: SortField, label: string, align: 'left' | 'center' = 'left') => {
+    const isActive = sortField === field;
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        style={{
+          padding: '10px 12px',
+          cursor: 'pointer',
+          userSelect: 'none',
+          textAlign: align,
+          color: isActive ? 'var(--ttpa-blue-primary)' : 'var(--text-secondary)',
+          fontWeight: isActive ? 700 : 600,
+          whiteSpace: 'nowrap',
+          transition: 'color 0.15s ease',
+        }}
+        title={`Ordenar por ${label} (${isActive && sortDirection === 'asc' ? 'Z-A ou Maior' : 'A-Z ou Menor'})`}
+      >
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <span>{label}</span>
+          {isActive ? (
+            sortDirection === 'asc' ? (
+              <ArrowUp size={14} style={{ color: 'var(--ttpa-blue-primary)' }} />
+            ) : (
+              <ArrowDown size={14} style={{ color: 'var(--ttpa-blue-primary)' }} />
+            )
+          ) : (
+            <ArrowUpDown size={13} style={{ opacity: 0.35 }} />
+          )}
+        </div>
+      </th>
+    );
+  };
+
+  const handleExportCSV = () => {
+    if (sortedRows.length === 0) return;
+
+    const headers = [
+      'Contact Name',
+      'Email',
+      'Phone',
+      'Representative',
+      'Form Name',
+      'Source',
+      'Date',
+      'CRM Link',
+    ];
+
+    const escapeCSV = (val: string | null | undefined) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const csvRows = sortedRows.map((row) => [
+      escapeCSV(row.contact_name),
+      escapeCSV(row.contact_email),
+      escapeCSV(row.contact_phone),
+      escapeCSV(row.rep_name),
+      escapeCSV(row.form_name),
+      escapeCSV(row.source),
+      escapeCSV(row.date),
+      escapeCSV(row.crm_url || ''),
+    ]);
+
+    const csvContent = '\uFEFF' + [
+      headers.map((h) => `"${h}"`).join(','),
+      ...csvRows.map((r) => r.join(',')),
+    ].join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    link.href = url;
+    link.setAttribute('download', `${safeTitle}_${startDate}_to_${endDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div
@@ -171,6 +306,31 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
               />
             </div>
 
+            {/* Export CSV Button */}
+            <button
+              onClick={handleExportCSV}
+              disabled={sortedRows.length === 0}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: sortedRows.length === 0 ? 'rgba(255,255,255,0.1)' : 'var(--ttpa-blue-primary)',
+                color: '#FFFFFF',
+                border: '1px solid rgba(255,255,255,0.2)',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: sortedRows.length === 0 ? 'not-allowed' : 'pointer',
+                opacity: sortedRows.length === 0 ? 0.6 : 1,
+                transition: 'all 0.2s ease',
+              }}
+              title="Exportar dados visíveis para planilha CSV"
+            >
+              <Download size={14} />
+              <span>Export CSV</span>
+            </button>
+
             {/* Close Button */}
             <button
               onClick={onClose}
@@ -203,7 +363,7 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
               <AlertCircle size={16} />
               <span>{error}</span>
             </div>
-          ) : filteredRows.length === 0 ? (
+          ) : sortedRows.length === 0 ? (
             <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
               No contact records found for this selection.
             </div>
@@ -211,18 +371,18 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
             <table className="ttpa-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border-medium)', textAlign: 'left', color: 'var(--text-secondary)' }}>
-                  <th style={{ padding: '10px' }}>Contact Name</th>
-                  <th style={{ padding: '10px' }}>Email</th>
-                  <th style={{ padding: '10px' }}>Phone</th>
-                  <th style={{ padding: '10px' }}>Representative</th>
-                  <th style={{ padding: '10px' }}>Form Name</th>
-                  <th style={{ padding: '10px' }}>Source</th>
-                  <th style={{ padding: '10px' }}>Date</th>
-                  <th style={{ padding: '10px', textAlign: 'center' }}>CRM Link</th>
+                  {renderSortableHeader('contact_name', 'Contact Name')}
+                  {renderSortableHeader('contact_email', 'Email')}
+                  {renderSortableHeader('contact_phone', 'Phone')}
+                  {renderSortableHeader('rep_name', 'Representative')}
+                  {renderSortableHeader('form_name', 'Form Name')}
+                  {renderSortableHeader('source', 'Source')}
+                  {renderSortableHeader('date', 'Date')}
+                  <th style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>CRM Link</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map((row, idx) => (
+                {paginatedRows.map((row, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                     <td style={{ padding: '10px', fontWeight: 600, color: 'var(--text-primary)' }}>
                       {row.contact_name}
@@ -273,6 +433,94 @@ export const DrilldownModal: React.FC<DrilldownModalProps> = ({
             </table>
           )}
         </div>
+
+        {/* Pagination Footer Bar */}
+        {!loading && !error && sortedRows.length > 0 && (
+          <div
+            style={{
+              padding: '12px 24px',
+              borderTop: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-surface)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                Showing {(currentPage - 1) * pageSize + 1} to{' '}
+                {Math.min(currentPage * pageSize, sortedRows.length)} of {sortedRows.length} contacts
+              </span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="ttpa-select"
+                  style={{
+                    padding: '3px 8px',
+                    fontSize: '12px',
+                    height: '28px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                className="ttpa-btn ttpa-btn-outline ttpa-btn-sm"
+                style={{
+                  opacity: currentPage === 1 ? 0.4 : 1,
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '4px 10px',
+                  fontSize: '12px',
+                }}
+              >
+                <ChevronLeft size={14} />
+                Previous
+              </button>
+
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', padding: '0 8px' }}>
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage >= totalPages}
+                className="ttpa-btn ttpa-btn-outline ttpa-btn-sm"
+                style={{
+                  opacity: currentPage >= totalPages ? 0.4 : 1,
+                  cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '4px 10px',
+                  fontSize: '12px',
+                }}
+              >
+                Next
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

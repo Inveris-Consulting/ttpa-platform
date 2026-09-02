@@ -101,15 +101,24 @@ export const Dashboard: React.FC = () => {
   }>({ submissions: [], deals: [], calls: [], students: [] });
 
   const [loading, setLoading] = useState(true);
+  const [loadingKpis, setLoadingKpis] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const activeRequestIdRef = React.useRef(0);
 
   useEffect(() => {
     fetchFormNames();
   }, []);
 
+  // Fetch KPIs only when core filters change (NOT on selectedKpi or granularity changes)
   useEffect(() => {
-    fetchDashboardKpis();
-    fetchDashboardCharts();
+    const reqId = ++activeRequestIdRef.current;
+    fetchDashboardKpis(reqId);
+  }, [selectedRep, startDate, endDate, selectedForm]);
+
+  // Fetch Charts when core filters OR chart-specific controls change
+  useEffect(() => {
+    const reqId = activeRequestIdRef.current;
+    fetchDashboardCharts(reqId);
   }, [selectedRep, startDate, endDate, selectedForm, selectedKpi, granularity]);
 
   const fetchFormNames = async () => {
@@ -123,7 +132,8 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const fetchDashboardKpis = async () => {
+  const fetchDashboardKpis = async (requestId: number) => {
+    setLoadingKpis(true);
     try {
       const { data, error } = await supabase.rpc('get_ttpa_performance_kpis', {
         p_start_date: startDate,
@@ -132,17 +142,33 @@ export const Dashboard: React.FC = () => {
         p_form_name: selectedForm,
       });
 
-      if (!error && data) {
-        setKpiMetrics(data);
+      // Discard stale responses from older filter changes
+      if (requestId !== activeRequestIdRef.current) return;
+
+      if (error) {
+        console.error('Error fetching KPIs:', error);
+        setErrorMessage(error.message);
+        return;
       }
-    } catch (err) {
-      console.error(err);
+
+      if (data) {
+        setKpiMetrics(data);
+        setErrorMessage(null);
+      }
+    } catch (err: any) {
+      if (requestId === activeRequestIdRef.current) {
+        console.error('KPIs fetch error:', err);
+        setErrorMessage(err.message || 'Error fetching KPIs.');
+      }
+    } finally {
+      if (requestId === activeRequestIdRef.current) {
+        setLoadingKpis(false);
+      }
     }
   };
 
-  const fetchDashboardCharts = async () => {
+  const fetchDashboardCharts = async (requestId: number) => {
     setLoading(true);
-    setErrorMessage(null);
     try {
       const { data, error } = await supabase.rpc('get_ttpa_performance_charts', {
         p_start_date: startDate,
@@ -152,6 +178,9 @@ export const Dashboard: React.FC = () => {
         p_kpi_type: selectedKpi,
         p_granularity: granularity,
       });
+
+      // Discard stale responses from older filter changes
+      if (requestId !== activeRequestIdRef.current) return;
 
       if (error) {
         setErrorMessage(error.message);
@@ -204,9 +233,13 @@ export const Dashboard: React.FC = () => {
         }
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Error fetching chart metrics.');
+      if (requestId === activeRequestIdRef.current) {
+        setErrorMessage(err.message || 'Error fetching chart metrics.');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === activeRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -278,14 +311,22 @@ export const Dashboard: React.FC = () => {
         setSelectedForm={setSelectedForm}
         formNames={formNames}
         onRefresh={() => {
-          fetchDashboardKpis();
-          fetchDashboardCharts();
+          const reqId = ++activeRequestIdRef.current;
+          fetchDashboardKpis(reqId);
+          fetchDashboardCharts(reqId);
         }}
-        isRefreshing={loading}
+        isRefreshing={loading || loadingKpis}
       />
 
       {/* LINHA 1: Cards */}
-      <div className="ttpa-kpi-grid">
+      <div
+        className="ttpa-kpi-grid"
+        style={{
+          opacity: loadingKpis ? 0.6 : 1,
+          pointerEvents: loadingKpis ? 'none' : 'auto',
+          transition: 'opacity 0.2s ease',
+        }}
+      >
         {mainKpis.map((kpi) => (
           <KPICard
             key={kpi.id}
