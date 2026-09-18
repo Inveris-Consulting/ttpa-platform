@@ -22,6 +22,8 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  Pencil,
+  X,
 } from 'lucide-react';
 
 interface Representative {
@@ -46,6 +48,7 @@ interface StudentRecord {
   day: number;
   weekNumber: number; // 1 to 5
   representativeId?: string;
+  contactId?: string;
   representativeName: string;
   isWFE: boolean;
   isUnassigned: boolean;
@@ -157,6 +160,11 @@ export const TTPABonusDashboard: React.FC = () => {
     startDate: `${BONUS_MIN_MONTH}-01`,
     endDate: '',
   });
+  const [fixStudent, setFixStudent] = useState<StudentRecord | null>(null);
+  const [fixMode, setFixMode] = useState<'wfe' | 'representative'>('representative');
+  const [fixRepresentativeId, setFixRepresentativeId] = useState('');
+  const [isSavingFix, setIsSavingFix] = useState(false);
+  const [fixMessage, setFixMessage] = useState<string | null>(null);
 
   // ── States dos Dados ──
   const [studentsData, setStudentsData] = useState<StudentRecord[]>([]);
@@ -375,6 +383,7 @@ export const TTPABonusDashboard: React.FC = () => {
           Stage,
           Source,
           "Program Enrollment",
+          "Contact ID",
           representative_id,
           dRepresentatives:representative_id (
             id,
@@ -412,6 +421,24 @@ export const TTPABonusDashboard: React.FC = () => {
         }
       }
 
+      // Admin-only live overrides. This makes a newly saved representative_fix
+      // visible immediately, before the next ETL refresh persists it in dContacts_crm.
+      const fixesMap = new Map<string, any>();
+      if (isAdmin && studentEmails.length > 0) {
+        const { data: fixes, error: fixesError } = await supabase
+          .from('representative_fix')
+          .select('email, representative_id, wfe, dRepresentatives:representative_id(Representative)')
+          .in('email', studentEmails);
+
+        if (fixesError) {
+          console.error('Error fetching representative fixes:', fixesError);
+        } else {
+          fixes?.forEach((fix: any) => {
+            if (fix.email) fixesMap.set(fix.email.trim().toLowerCase(), fix);
+          });
+        }
+      }
+
       if (students) {
         const formatted: StudentRecord[] = students
           .filter((s: any) => {
@@ -425,13 +452,23 @@ export const TTPABonusDashboard: React.FC = () => {
 
             const emailKey = (s.Email || '').trim().toLowerCase();
             const contactInfo = contactsMap.get(emailKey);
+            const representativeFix = fixesMap.get(emailKey);
 
             let repName = '';
             let isWFE = false;
             let isUnassigned = false;
 
+            // A correction made by an admin has priority and is shown immediately.
+            if (representativeFix?.wfe === true) {
+              repName = 'WFE';
+              isWFE = true;
+              isUnassigned = false;
+            } else if (representativeFix?.representative_id) {
+              repName = representativeFix.dRepresentatives?.Representative || 'Assigned representative';
+              isWFE = false;
+              isUnassigned = false;
             // Regra: Se a coluna dContacts_crm.WFE = true, o Representative é WFE
-            if (contactInfo?.WFE === true) {
+            } else if (contactInfo?.WFE === true) {
               repName = 'WFE';
               isWFE = true;
               isUnassigned = false;
@@ -461,6 +498,7 @@ export const TTPABonusDashboard: React.FC = () => {
               day,
               weekNumber,
               representativeId: s.representative_id,
+              contactId: s['Contact ID'],
               representativeName: repName,
               isWFE,
               isUnassigned,
@@ -483,6 +521,41 @@ export const TTPABonusDashboard: React.FC = () => {
   const handleRefresh = () => {
     setIsRefreshing(true);
     loadStudentsForMonth();
+  };
+
+  const openRepresentativeFix = (student: StudentRecord) => {
+    setFixStudent(student);
+    setFixMode(student.isWFE ? 'wfe' : 'representative');
+    setFixRepresentativeId(student.representativeId || '');
+    setFixMessage(null);
+  };
+
+  const saveRepresentativeFix = async () => {
+    if (!isAdmin || !fixStudent) return;
+    if (fixMode === 'representative' && !fixRepresentativeId) {
+      setFixMessage('Select a representative or mark this student as WFE.');
+      return;
+    }
+
+    setIsSavingFix(true);
+    setFixMessage(null);
+    const { error } = await supabase.from('representative_fix').insert({
+      contact_id: fixStudent.contactId || null,
+      email: fixStudent.email.trim().toLowerCase(),
+      representative_id: fixMode === 'representative' ? fixRepresentativeId : null,
+      wfe: fixMode === 'wfe',
+      updated_by: userSession?.user?.id || null,
+    });
+    setIsSavingFix(false);
+
+    if (error) {
+      setFixMessage(`Unable to save this correction: ${error.message}`);
+      return;
+    }
+
+    setIsRefreshing(true);
+    setFixStudent(null);
+    await loadStudentsForMonth();
   };
 
   // Representante selecionado
@@ -2042,6 +2115,7 @@ export const TTPABonusDashboard: React.FC = () => {
                   <th style={{ padding: '10px 12px', fontWeight: 700 }}>Program</th>
                   <th style={{ padding: '10px 12px', fontWeight: 700 }}>Stage</th>
                   <th style={{ padding: '10px 12px', fontWeight: 700, textAlign: 'center' }}>CRM Link</th>
+                  {isAdmin && <th style={{ padding: '10px 12px', fontWeight: 700, textAlign: 'center' }}>Fix</th>}
                 </tr>
               </thead>
               <tbody>
@@ -2128,12 +2202,28 @@ export const TTPABonusDashboard: React.FC = () => {
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>—</span>
                       )}
                     </td>
+                    {isAdmin && (
+                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => openRepresentativeFix(st)}
+                          title="Set WFE or representative"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: '28px', height: '28px', borderRadius: '6px', border: 'none',
+                            backgroundColor: 'rgba(234, 88, 12, 0.10)', color: '#C2410C', cursor: 'pointer',
+                          }}
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
 
                 {tableStudents.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan={isAdmin ? 9 : 8} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
                       No enrolled students found for the selected filters.
                     </td>
                   </tr>
@@ -2143,6 +2233,49 @@ export const TTPABonusDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {isAdmin && fixStudent && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="representative-fix-title"
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: '20px', backgroundColor: 'rgba(15, 23, 42, 0.42)' }}
+          onMouseDown={() => !isSavingFix && setFixStudent(null)}
+        >
+          <section
+            onMouseDown={(event) => event.stopPropagation()}
+            style={{ width: '100%', maxWidth: '440px', padding: '20px', borderRadius: '12px', backgroundColor: 'var(--bg-surface)', boxShadow: '0 20px 48px rgba(15, 23, 42, 0.28)', border: '1px solid var(--border-subtle)' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'start', marginBottom: '16px' }}>
+              <div>
+                <h2 id="representative-fix-title" style={{ margin: 0, color: 'var(--text-primary)', fontSize: '16px', fontWeight: 800 }}>Representative fix</h2>
+                <p style={{ margin: '4px 0 0', color: 'var(--text-secondary)', fontSize: '12px' }}>{fixStudent.name} · {fixStudent.email}</p>
+              </div>
+              <button type="button" onClick={() => setFixStudent(null)} disabled={isSavingFix} aria-label="Close" style={{ display: 'inline-flex', border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}><X size={18} /></button>
+            </div>
+
+            <div style={{ display: 'grid', gap: '10px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', border: `1px solid ${fixMode === 'wfe' ? 'rgba(234, 88, 12, 0.45)' : 'var(--border-subtle)'}`, borderRadius: '8px', cursor: 'pointer', backgroundColor: fixMode === 'wfe' ? 'rgba(234, 88, 12, 0.06)' : 'transparent' }}>
+                <input type="radio" name="representative-fix" checked={fixMode === 'wfe'} onChange={() => setFixMode('wfe')} />
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Mark as WFE</span>
+              </label>
+              <label style={{ display: 'grid', gap: '6px', padding: '10px', border: `1px solid ${fixMode === 'representative' ? 'rgba(37, 99, 235, 0.42)' : 'var(--border-subtle)'}`, borderRadius: '8px', cursor: 'pointer', backgroundColor: fixMode === 'representative' ? 'rgba(37, 99, 235, 0.05)' : 'transparent' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="radio" name="representative-fix" checked={fixMode === 'representative'} onChange={() => setFixMode('representative')} /><span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Assign representative</span></span>
+                <select value={fixRepresentativeId} disabled={fixMode !== 'representative'} onChange={(event) => setFixRepresentativeId(event.target.value)} style={{ padding: '7px 9px', borderRadius: '6px', border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)', fontSize: '12px' }}>
+                  <option value="">Select representative</option>
+                  {representatives.map((rep) => <option key={rep.id} value={rep.id}>{rep.Representative}</option>)}
+                </select>
+              </label>
+            </div>
+
+            {fixMessage && <p style={{ margin: '12px 0 0', color: 'var(--color-danger)', fontSize: '12px' }}>{fixMessage}</p>}
+            <div style={{ display: 'flex', justifyContent: 'end', gap: '8px', marginTop: '18px' }}>
+              <button type="button" onClick={() => setFixStudent(null)} disabled={isSavingFix} style={{ padding: '7px 11px', borderRadius: '6px', border: '1px solid var(--border-medium)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>Cancel</button>
+              <button type="button" onClick={saveRepresentativeFix} disabled={isSavingFix} style={{ padding: '7px 11px', borderRadius: '6px', border: 'none', background: 'var(--ttpa-blue-primary)', color: '#fff', cursor: isSavingFix ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 800 }}>{isSavingFix ? 'Saving...' : 'Save & refresh'}</button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 };
