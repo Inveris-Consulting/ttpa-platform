@@ -69,7 +69,15 @@ Os representantes são categorizados na coluna `Type`:
 A dimensão de contatos contém o link direto para o CRM UnifyAI:
 * **Fórmula**: `https://crm.myunifyai.com/contact/edit/{Contact ID}`
 
-### 3.4. Resolução de Full Name (`dContacts_crm`)
+### 3.4. Histórico de participação WFE (`representative_wfe_periods`)
+`dRepresentatives.wfe` continua indicando se o representante integra o WFE **no momento atual**. Para o cálculo do TTPA Bonus, a participação histórica é definida por períodos em `representative_wfe_periods`.
+
+* Cada registro contém `representative_id`, `start_date` e `end_date` opcional.
+* Períodos de um mesmo representante não podem se sobrepor.
+* O período é aplicado por semana do bônus: se houver interseção entre a semana e o intervalo, o representante participa do pool WFE naquela semana.
+* Somente administradores podem criar, alterar ou excluir períodos; representantes conseguem ler apenas os próprios períodos para visualizar o cálculo.
+
+### 3.5. Resolução de Full Name (`dContacts_crm`)
 * Se `First Name` estiver preenchido: `First Name + " " + Last Name`.
 * Se `First Name` for nulo: Extrai a parte antes de `" -"` da coluna `Name`.
 
@@ -123,7 +131,17 @@ Vinculada diretamente ao schema de autenticação `auth.users` do Supabase.
 
 ---
 
-### 4.4. Tabela `public."dContacts_crm"` (Dimensão Contatos)
+### 4.4. Tabela `public.representative_wfe_periods` (Histórico WFE)
+
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | `UUID` | **PRIMARY KEY** | Identificador do período. |
+| `representative_id` | `UUID` | `NOT NULL`, `FK -> dRepresentatives(id)` | Representante participante do WFE. |
+| `start_date` | `DATE` | `NOT NULL` | Primeiro dia de participação no pool WFE. |
+| `end_date` | `DATE` | Nulo ou `>= start_date` | Último dia da participação; nulo significa período em andamento. |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL` | Data/hora de criação do período. |
+
+### 4.5. Tabela `public."dContacts_crm"` (Dimensão Contatos)
 
 | Coluna | Tipo | Descrição |
 | :--- | :--- | :--- |

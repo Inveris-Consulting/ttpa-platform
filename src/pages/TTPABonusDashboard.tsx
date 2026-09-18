@@ -17,6 +17,11 @@ import {
   ExternalLink,
   Flame,
   Zap,
+  Plus,
+  Save,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface Representative {
@@ -49,6 +54,15 @@ interface StudentRecord {
   stage?: string;
   source?: string;
 }
+
+interface WfeMembershipPeriod {
+  id: string;
+  representative_id: string;
+  start_date: string;
+  end_date: string | null;
+}
+
+const BONUS_MIN_MONTH = '2026-08';
 
 // Representantes excluídos conforme solicitação
 const EXCLUDED_REPRESENTATIVES = [
@@ -134,6 +148,15 @@ export const TTPABonusDashboard: React.FC = () => {
   const [isLoadingRate, setIsLoadingRate] = useState<boolean>(false);
   const [rateSource, setRateSource] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [wfePeriods, setWfePeriods] = useState<WfeMembershipPeriod[]>([]);
+  const [isWfeSettingsOpen, setIsWfeSettingsOpen] = useState(false);
+  const [isSavingWfePeriod, setIsSavingWfePeriod] = useState(false);
+  const [wfePeriodMessage, setWfePeriodMessage] = useState<string | null>(null);
+  const [newWfePeriod, setNewWfePeriod] = useState({
+    representativeId: '',
+    startDate: `${BONUS_MIN_MONTH}-01`,
+    endDate: '',
+  });
 
   // ── States dos Dados ──
   const [studentsData, setStudentsData] = useState<StudentRecord[]>([]);
@@ -222,6 +245,10 @@ export const TTPABonusDashboard: React.FC = () => {
           (r: any) => !EXCLUDED_REPRESENTATIVES.includes(r.Representative)
         );
         setRepresentatives(filteredReps);
+        setNewWfePeriod((prev) => ({
+          ...prev,
+          representativeId: prev.representativeId || filteredReps[0]?.id || '',
+        }));
 
         // Se o usuário não for admin e tiver representative_id vinculado, trava nele
         if (!isAdmin && userRepId) {
@@ -255,7 +282,8 @@ export const TTPABonusDashboard: React.FC = () => {
             });
           }
         });
-        const monthsList = Array.from(uniqueMonthsMap.values());
+        const monthsList = Array.from(uniqueMonthsMap.values())
+          .filter((month) => month.monthKey >= BONUS_MIN_MONTH);
         setAvailableMonths(monthsList);
 
         if (monthsList.some((m) => m.monthKey === '2026-08')) {
@@ -267,6 +295,63 @@ export const TTPABonusDashboard: React.FC = () => {
     } catch (err) {
       console.error('Error loading bonus filters:', err);
     }
+
+    await loadWfePeriods();
+  };
+
+  const loadWfePeriods = async () => {
+    const { data, error } = await supabase
+      .from('representative_wfe_periods')
+      .select('id, representative_id, start_date, end_date')
+      .order('start_date', { ascending: false });
+
+    if (error) {
+      console.error('Error loading WFE membership periods:', error);
+      setWfePeriodMessage('Unable to load WFE membership settings. Confirm that the database migration has been applied.');
+      return;
+    }
+    setWfePeriods(data || []);
+  };
+
+  const saveWfePeriod = async () => {
+    if (!newWfePeriod.representativeId || !newWfePeriod.startDate) {
+      setWfePeriodMessage('Select a representative and a start date.');
+      return;
+    }
+    if (newWfePeriod.endDate && newWfePeriod.endDate < newWfePeriod.startDate) {
+      setWfePeriodMessage('The end date cannot be before the start date.');
+      return;
+    }
+
+    setIsSavingWfePeriod(true);
+    setWfePeriodMessage(null);
+    const { error } = await supabase.from('representative_wfe_periods').insert({
+      representative_id: newWfePeriod.representativeId,
+      start_date: newWfePeriod.startDate,
+      end_date: newWfePeriod.endDate || null,
+    });
+    setIsSavingWfePeriod(false);
+
+    if (error) {
+      setWfePeriodMessage(error.code === '23P01'
+        ? 'This period overlaps an existing WFE period for the representative.'
+        : `Unable to save this WFE period: ${error.message}`);
+      return;
+    }
+
+    setWfePeriodMessage('WFE period saved.');
+    setNewWfePeriod((prev) => ({ ...prev, startDate: '', endDate: '' }));
+    await loadWfePeriods();
+  };
+
+  const deleteWfePeriod = async (periodId: string) => {
+    const { error } = await supabase.from('representative_wfe_periods').delete().eq('id', periodId);
+    if (error) {
+      setWfePeriodMessage(`Unable to remove this WFE period: ${error.message}`);
+      return;
+    }
+    setWfePeriodMessage('WFE period removed.');
+    await loadWfePeriods();
   };
 
   const loadStudentsForMonth = async () => {
@@ -405,7 +490,27 @@ export const TTPABonusDashboard: React.FC = () => {
     return representatives.find((r) => r.Representative === selectedRep) || representatives[0] || null;
   }, [selectedRep, representatives]);
 
-  const isCurrentRepWFE = currentRepObj?.wfe === true;
+  const isRepresentativeWfeDuring = (representativeId: string, startDate: string, endDate: string) =>
+    wfePeriods.some((period) =>
+      period.representative_id === representativeId &&
+      period.start_date <= endDate &&
+      (!period.end_date || period.end_date >= startDate)
+    );
+
+  const getWeekDateRange = (weekNumber: number) => {
+    const lastDay = new Date(currentYear, currentMonthNum, 0).getDate();
+    const startDay = (weekNumber - 1) * 7 + 1;
+    const endDay = Math.min(weekNumber * 7, lastDay);
+    const formatDate = (day: number) => `${selectedMonth}-${String(day).padStart(2, '0')}`;
+    return { startDate: formatDate(startDay), endDate: formatDate(endDay) };
+  };
+
+  const wfeEligibleWeeksFor = (representativeId?: string) =>
+    Array.from({ length: monthWeeksCount }, (_, index) => index + 1).filter((weekNumber) => {
+      if (!representativeId) return false;
+      const range = getWeekDateRange(weekNumber);
+      return isRepresentativeWfeDuring(representativeId, range.startDate, range.endDate);
+    });
 
   // Filtragem dos estudantes para a visualização do representante atual
   const filteredStudents = useMemo(() => {
@@ -426,6 +531,12 @@ export const TTPABonusDashboard: React.FC = () => {
   const currentYear = useMemo(() => parseInt(selectedMonth.split('-')[0], 10), [selectedMonth]);
   const currentMonthNum = useMemo(() => parseInt(selectedMonth.split('-')[1], 10), [selectedMonth]);
 
+  const currentRepWfeWeeks = useMemo(
+    () => wfeEligibleWeeksFor(currentRepObj?.id),
+    [currentRepObj?.id, wfePeriods, selectedMonth, monthWeeksCount]
+  );
+  const isCurrentRepWFE = currentRepWfeWeeks.length > 0;
+
   // ── Alunos do time WFE no mês ──
   const allWfeStudents = useMemo(() => {
     return studentsData.filter((s) => s.isWFE);
@@ -435,20 +546,11 @@ export const TTPABonusDashboard: React.FC = () => {
   const repBreakdownList = useMemo(() => {
     const weeks = [1, 2, 3, 4, 5];
     const wfeCountsByWeek = weeks.map((wNum) => allWfeStudents.filter((s) => s.weekNumber === wNum).length);
-    let wfeWeeklyBonus = 0;
-    let wfeAdditionalBonus = 0;
-    wfeCountsByWeek.forEach((c) => {
-      const wInfo = getWFEWeekRate(c);
-      wfeWeeklyBonus += c * wInfo.rate;
-      wfeAdditionalBonus += wInfo.additionalBonus;
-    });
-    const wfeTotalBonus = wfeWeeklyBonus + wfeAdditionalBonus;
-    const wfeTotalStudents = allWfeStudents.length;
-
     return representatives
       .filter((r) => !EXCLUDED_REPRESENTATIVES.includes(r.Representative))
       .map((rep) => {
-        const isWfeRep = rep.wfe === true;
+        const eligibleWfeWeeks = wfeEligibleWeeksFor(rep.id);
+        const isWfeRep = eligibleWfeWeeks.length > 0;
 
         // Alunos individuais TTPA do representante
         const repTtpaStudents = studentsData.filter(
@@ -462,11 +564,23 @@ export const TTPABonusDashboard: React.FC = () => {
 
         // Se for WFE, soma a bonificação TTPA individual com o pool coletivo WFE
         if (isWfeRep) {
-          const totalStudents = repTtpaStudents.length + wfeTotalStudents;
-          const weeklyBonus = ttpaWeeklyBonus + wfeWeeklyBonus;
-          const monthlyOrAddBonus = ttpaMonthlyBonus + wfeAdditionalBonus;
-          const totalBonus = ttpaTotal + wfeTotalBonus;
-          const countsByWeek = weeks.map((_, idx) => ttpaCountsByWeek[idx] + wfeCountsByWeek[idx]);
+          const eligibleIndexes = eligibleWfeWeeks.map((week) => week - 1);
+          const eligibleWfeStudents = eligibleIndexes.reduce((sum, index) => sum + wfeCountsByWeek[index], 0);
+          const eligibleWfeWeeklyBonus = eligibleIndexes.reduce((sum, index) => {
+            const count = wfeCountsByWeek[index];
+            return sum + count * getWFEWeekRate(count).rate;
+          }, 0);
+          const eligibleWfeAdditionalBonus = eligibleIndexes.reduce(
+            (sum, index) => sum + getWFEWeekRate(wfeCountsByWeek[index]).additionalBonus,
+            0
+          );
+          const totalStudents = repTtpaStudents.length + eligibleWfeStudents;
+          const weeklyBonus = ttpaWeeklyBonus + eligibleWfeWeeklyBonus;
+          const monthlyOrAddBonus = ttpaMonthlyBonus + eligibleWfeAdditionalBonus;
+          const totalBonus = ttpaTotal + eligibleWfeWeeklyBonus + eligibleWfeAdditionalBonus;
+          const countsByWeek = weeks.map((_, idx) =>
+            ttpaCountsByWeek[idx] + (eligibleIndexes.includes(idx) ? wfeCountsByWeek[idx] : 0)
+          );
 
           return {
             id: rep.id,
@@ -494,7 +608,7 @@ export const TTPABonusDashboard: React.FC = () => {
         };
       })
       .sort((a, b) => b.totalBonus - a.totalBonus || b.studentsCount - a.studentsCount);
-  }, [representatives, studentsData, allWfeStudents]);
+  }, [representatives, studentsData, allWfeStudents, wfePeriods, selectedMonth, monthWeeksCount]);
 
   // ── Cálculo da Matriz TTPA (Específica do Representante TTPA Selecionado) ──
   const ttpaMatrixData = useMemo(() => {
@@ -540,7 +654,8 @@ export const TTPABonusDashboard: React.FC = () => {
 
     const weekStats = weeks.map((wNum) => {
       // WFE é coletivo da equipe: soma todos os alunos WFE do time na semana
-      const weekStudents = allWfeStudents.filter((s) => s.weekNumber === wNum);
+      const isEligibleWeek = currentRepWfeWeeks.includes(wNum);
+      const weekStudents = isEligibleWeek ? allWfeStudents.filter((s) => s.weekNumber === wNum) : [];
       const count = weekStudents.length;
       const wfeInfo = getWFEWeekRate(count);
       const weeklyBonus = count * wfeInfo.rate;
@@ -575,7 +690,7 @@ export const TTPABonusDashboard: React.FC = () => {
       totalBonus,
       bestWeekNum,
     };
-  }, [allWfeStudents, monthWeeksCount, currentYear, currentMonthNum]);
+  }, [allWfeStudents, monthWeeksCount, currentYear, currentMonthNum, currentRepWfeWeeks]);
 
   // ── KPIs do Representante / Time Selecionado (Somando TTPA + WFE) ──
   const representativeKpis = useMemo(() => {
@@ -830,6 +945,23 @@ export const TTPABonusDashboard: React.FC = () => {
               ))}
             </select>
           </div>
+
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setIsWfeSettingsOpen((isOpen) => !isOpen)}
+              aria-expanded={isWfeSettingsOpen}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 9px',
+                borderRadius: '6px', border: '1px solid rgba(234, 88, 12, 0.26)',
+                backgroundColor: isWfeSettingsOpen ? 'rgba(234, 88, 12, 0.09)' : 'var(--bg-app)',
+                color: '#C2410C', fontSize: '11px', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              WFE Reps {wfePeriods.length > 0 ? `(${wfePeriods.length})` : ''}
+              {isWfeSettingsOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            </button>
+          )}
         </div>
 
         {/* Currency Rate Widget */}
@@ -904,6 +1036,68 @@ export const TTPABonusDashboard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {isAdmin && isWfeSettingsOpen && (
+        <section
+          style={{
+            marginTop: '-24px',
+            marginBottom: '24px',
+            padding: '12px 16px',
+            borderRadius: '0 0 12px 12px',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderTop: 'none',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '10px' }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                WFE Reps
+              </h2>
+              <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                Participation dates for the WFE pool.
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) minmax(130px, 0.8fr) minmax(130px, 0.8fr) auto', gap: '8px', alignItems: 'end' }}>
+            <label style={{ display: 'grid', gap: '5px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+              Representative
+              <select value={newWfePeriod.representativeId} onChange={(e) => setNewWfePeriod((prev) => ({ ...prev, representativeId: e.target.value }))} style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)' }}>
+                {representatives.map((rep) => <option key={rep.id} value={rep.id}>{rep.Representative}</option>)}
+              </select>
+            </label>
+            <label style={{ display: 'grid', gap: '5px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+              Start date
+              <input type="date" min={`${BONUS_MIN_MONTH}-01`} value={newWfePeriod.startDate} onChange={(e) => setNewWfePeriod((prev) => ({ ...prev, startDate: e.target.value }))} style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)' }} />
+            </label>
+            <label style={{ display: 'grid', gap: '5px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+              End date <span style={{ fontWeight: 500 }}>(optional)</span>
+              <input type="date" min={newWfePeriod.startDate || `${BONUS_MIN_MONTH}-01`} value={newWfePeriod.endDate} onChange={(e) => setNewWfePeriod((prev) => ({ ...prev, endDate: e.target.value }))} style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)' }} />
+            </label>
+            <button onClick={saveWfePeriod} disabled={isSavingWfePeriod} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px', minHeight: '31px', padding: '6px 9px', border: 'none', borderRadius: '6px', background: '#EA580C', color: '#fff', fontSize: '11px', fontWeight: 800, cursor: isSavingWfePeriod ? 'not-allowed' : 'pointer' }}>
+              {isSavingWfePeriod ? <Save size={14} /> : <Plus size={14} />}
+              {isSavingWfePeriod ? 'Saving...' : 'Add period'}
+            </button>
+          </div>
+
+          {wfePeriodMessage && <p style={{ margin: '10px 0 0', fontSize: '12px', color: wfePeriodMessage === 'WFE period saved.' || wfePeriodMessage === 'WFE period removed.' ? 'var(--emerald-600)' : 'var(--color-danger)' }}>{wfePeriodMessage}</p>}
+
+          <div style={{ marginTop: '10px', overflowX: 'auto', borderTop: '1px solid var(--border-subtle)' }}>
+            {wfePeriods.length === 0 ? (
+              <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>No periods configured yet.</p>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                <thead><tr style={{ color: 'var(--text-secondary)', textAlign: 'left' }}><th style={{ padding: '7px 8px' }}>Representative</th><th style={{ padding: '7px 8px' }}>Start</th><th style={{ padding: '7px 8px' }}>End</th><th style={{ padding: '7px 8px' }} /></tr></thead>
+                <tbody>{wfePeriods.map((period) => {
+                  const representative = representatives.find((rep) => rep.id === period.representative_id);
+                  return <tr key={period.id} style={{ borderTop: '1px solid var(--border-subtle)' }}><td style={{ padding: '6px 8px', fontWeight: 700 }}>{representative?.Representative || 'Unknown representative'}</td><td style={{ padding: '6px 8px' }}>{period.start_date}</td><td style={{ padding: '6px 8px' }}>{period.end_date || 'Ongoing'}</td><td style={{ padding: '4px 8px', textAlign: 'right' }}><button onClick={() => deleteWfePeriod(period.id)} title="Remove WFE period" style={{ display: 'inline-flex', border: 'none', background: 'transparent', color: 'var(--color-danger)', cursor: 'pointer', padding: '3px' }}><Trash2 size={14} /></button></td></tr>;
+                })}</tbody>
+              </table>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ── Modern KPI Cards Grid (For Selected Representative) ── */}
       <div
